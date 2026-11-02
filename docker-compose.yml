@@ -1,0 +1,24 @@
+services:
+  lab:
+    build: .
+    image: vscode-galway-stats:latest
+    container_name: galway-stats-lab
+    working_dir: /workspace
+    ports:
+      # RStudio Server reachable only from this computer, not from the network.
+      # Host port 8787 by default; override with RSTUDIO_PORT
+      - "127.0.0.1:${RSTUDIO_PORT:-8787}:8787"
+    environment:
+      # No RStudio login: safe because the port is bound to 127.0.0.1 only
+      - DISABLE_AUTH=true
+    volumes:
+      # Project folder, read-write
+      - .:/workspace
+      # Datasets, read-only so the raw data can never be changed by accident
+      - ./data:/workspace/data:ro
+      - ${USERPROFILE}/.claude:/root/.claude
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # Use Docker's default network (the project network had no internet)
+    network_mode: bridge

@@ -1,0 +1,222 @@
+---
+title: "ST5001 Assignment 3 2026"
+author: "Geovanny Hernandez Gutierrez - Student ID:26293856"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Packages needed (install once with install.packages() if you don't have them)
+library(ggridges)
+library(viridis)
+library(ggpubr)
+library(infer)
+library(table1)
+library(tolerance)
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+
+## Question of Interest
+
+In this study, 60 consecutive patients were randomised to one of two treatments.  
+
+Patients on Treatment A (Cast Immobilisation) had below knee cast post ankle fracture fixation and remained non weight bearing for six weeks.  
+
+Patients on Treatment B (Early Mobilisation) had a back-slab for 2 weeks post fixation which was subsequently removed and, once the radiographs were deemed satisfactory, they were referred to the physiotherapy services for range of movement exercise while remaining non weight bearing.   
+
+Patients were followed up at 2, 6, 12, 24, and 36 weeks post fixation with their pain and functional status being measured by the American Orthopaedic Foot and Ankle Score (AOFAS) which ranges from 0 to 100 with 100 corresponding to fully functioning and pain-free status (i.e. higher is better). 
+
+Use these data to investigate whether there is a meaningful difference in the typical 24 week AOFAS score between the treatments.
+
+
+### Import the data
+
+Make sure `Ankle_Fractures.csv` is saved in the same folder as this markdown file. If the csv file is not in the same folder as your rmd file, remember to change the path to the file in the `read.csv()` function.
+
+```{r}
+ankle.df <- read.csv("Ankle_Fractures.csv")
+```
+
+Filter the week 24 data into a new data frame, `ankle.24.df`.
+
+```{r}
+ankle.24.df <- ankle.df %>% filter(Time == 24)
+```
+
+
+
+## Numerical and graphical summaries
+
+**Question 1**: Perform numerical summaries to obtain the mean, standard deviation, median, minimum and maximum treatment A and B, respectively. Provide a brief explanation or conclusion based on the summaries. (5 points) 
+
+```{r}
+ankle.24.df %>% group_by(Treatment) %>%
+            summarise(mean        = mean(AOFAS),
+                      sd          = sd(AOFAS),
+                      median      = median(AOFAS),
+                      min         = min(AOFAS),
+                      max         = max(AOFAS),
+                      sample.size = n()
+                      )
+
+```
+**Analysis - Question 1**:
+We could observe on the patients of Treatment B (Early Mobilisation) higher values on statistics such as mean which is around 6.46 points above the Treatment A (Cast Immobilisation). In the case of Treatment A, its Standard Deviation is almost 2.5 times than Treatment B, and the median keep a close value to its respective mean in both treatments(again Treatment B mean is almost exact to median) .  We could observe a wide range of min and max in treatment A, meanwhile the Treatmet B keep a constant range.
+
+
+**Question 2**: Perform graphical summaries (boxplots, density plots and etc) for treatment A and B. Provide a brief explanation or conclusion based on the summaries. (5 points)
+
+```{r}
+# bloxplots
+ggplot(ankle.24.df, aes(x = Treatment, y = AOFAS, colour = Treatment)) +
+       geom_boxplot() +
+       labs(title = "Boxplot of Week 24 AOFAS by Group",
+            subtitle = "(with mean symbol)",
+            y = "AOFAS Score",
+            x = " ") +
+    stat_summary(fun=mean, geom = "point", shape=20, size=5, color="#E69F00",fill="#E69F00") +
+    theme(legend.position = "none")
+  
+# density plots
+library(ggridges)
+library(viridis)
+    
+ggplot(ankle.24.df, aes(x = AOFAS,
+                     y = Treatment,
+                     fill = ..x..)) +
+  geom_density_ridges_gradient(jittered_points = TRUE, position = "raincloud",
+                          alpha = 0.7, scale = 0.9) +
+  scale_fill_viridis(name = "AOFAS", option = "E") +
+  labs(x = "Week 24 AOFAS Score", y = "") +
+  ggtitle('Week 24 AOFAS Density by Treatment')
+    
+
+```
+**Analysis - Question 2**:
+
+Reviewing boxplots and density plot, in a visual way, we are going to get some conclusions,
+
+Boxplots: We could observe than both treatments do not overlap. The Treatment A shows a wider
+IQR in comparison with Treatment B.  The Treatment A has whisker values higher than Treatment B, 
+
+
+Density Plots: IN this graph, we can observe the normal distribution bell shape in the
+Treatment B, on the other hand, the treatment A, it is left skewed and disperse values
+through the graph.
+
+## One-sample inference
+
+**Question 3**: What is the 95% CI for the mean of AOFAS scores for treatment A and B, respectively? Provide a brief explanation or conclusion based on the result. (20 points)
+```{r}
+# We must to filter each group for getting the CI for the means (using t.test)
+TA <- ankle.24.df %>% filter(Treatment == "A") %>% pull(AOFAS)
+TB <- ankle.24.df %>% filter(Treatment == "B") %>% pull(AOFAS)
+
+t.test(TA)$conf.int
+t.test(TB)$conf.int
+```
+**Analysis - Question 3**:
+Treatment A: The respective CI fall in the range of [76.67578, 81.92422], we are 95%
+confident that the patients mean AOFAS  is between 76.67578 and 81.92422.
+
+Treatment B: The respective CI fall in the range of [84.72111, 86.81222], we are 95%
+confident that the patients mean AOFAS  is between 84.72111 and 86.81222.
+
+
+
+**Question 4**: What is the 95% CI for the median of AOFAS scores for treatment A and B, respectively? Provide a brief explanation or conclusion based on the result. (20 points)
+```{r}
+# Q4 – 95% CI for the median, per group
+wilcox.test(TA, conf.int = TRUE)$conf.int
+wilcox.test(TB, conf.int = TRUE)$conf.int
+```
+
+**Analysis - Question 4**:
+We have applied the Wilcoxon interval (non-parametric), estimating a pseudo-median
+Comparing both ranges for Treatment A and Treatment B, there is no overlap between
+them, as you can see here:
+
+Treatment A: CI [77.0, 82.5]
+Treatment B: CI [84.5, 87.0]
+
+The treatment A has a  median interval slightly higher than means, what explain the
+left skew shape, especially in the density plots graph.  Additionally, A's interval
+is wider than B, explained by Standard Deviation stats described in the Question 1.
+
+
+
+## Two-sample inference
+
+**Question 5**: Is there a meaningful difference in the typical 24 week AOFAS score between the treatments? (Please use `t.test`, `wilcox.test`, and bootstrap to answer the question.) (30 points)
+```{r}
+# We are going to use all these  t.test / Wilcoxon / Bootstrap  which will be helpful 
+# for the Question 3 and Question 5 too
+
+#t-test
+t.test(AOFAS ~ Treatment, data = ankle.24.df)
+
+#Wilcox
+wilcox.test(AOFAS ~ Treatment, conf.int = TRUE, conf.level = 0.95, data = ankle.24.df)
+
+#Bootstrap
+#means
+ankle.24.boot_means <- ankle.24.df %>%
+  specify(response = AOFAS, explanatory = Treatment) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("B","A"))
+
+percentile_ci <- get_ci(ankle.24.boot_means)
+percentile_ci
+
+library(infer)
+ankle.24.boot_means %>% visualize() + shade_confidence_interval(percentile_ci)
+
+# medians
+ankle.24.boot_medians <- ankle.24.df %>%
+  specify(response = AOFAS, explanatory = Treatment) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in medians", order = c("B", "A"))
+
+percentile_ci <- get_ci(ankle.12.boot)
+
+percentile_ci
+
+
+```
+**Analysis - Question 5**:
+
+
+
+
+## Tolerance interval
+
+**Question 6**: Calculate the 95%/99% tolerance interval for treatment A and B, respectively. Provide a brief explanation based on the results. (20 points)
+
+```{r}
+# Q6 – 95%/99% tolerance interval for treatment A and B  (95% CI and 99% coverage of patients)
+normtol.int(TA, alpha = 0.05, P = 0.99, side = 2)
+normtol.int(TB, alpha = 0.05, P = 0.99, side = 2)
+# Based on the output
+# We are 95% confident that 99% of Treatment A patients will have a 24-week AOFAS score 
+# between 55.69 and 102.9
+```
+
+
+
+
+
+
+
+
+
+
+

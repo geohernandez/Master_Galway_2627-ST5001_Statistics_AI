@@ -1,0 +1,9 @@
+data/
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+.env
+# Word temporary / lock files
+~$*
+~WRL*.tmp

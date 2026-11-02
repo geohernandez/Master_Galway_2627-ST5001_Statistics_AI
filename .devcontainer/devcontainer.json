@@ -1,0 +1,27 @@
+// VS Code Dev Container: reuses the "lab" service from docker-compose.yml
+{
+	"name": "Galway Statistics for AI (R 4.5)",
+	"dockerComposeFile": "../docker-compose.yml",
+	"service": "lab",
+	"workspaceFolder": "/workspace",
+	"shutdownAction": "stopCompose",
+
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"r.rterm.linux": "/usr/local/bin/R",
+				"r.bracketedPaste": true,
+				"r.sessionWatcher": true,
+				"r.lsp.enabled": true
+			},
+			"extensions": [
+				"REditorSupport.r",
+				"streetsidesoftware.code-spell-checker",
+				"Anthropic.claude-code"
+			]
+		}
+	},
+
+	// Confirm every package loads once the container is ready
+	"postCreateCommand": "Rscript src/check_env.R"
+}

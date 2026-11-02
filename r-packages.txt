@@ -1,0 +1,17 @@
+# R packages installed on top of rocker/tidyverse.
+# Already in the base image: tidyverse (ggplot2, dplyr, tidyr, readr, purrr,
+# tibble, stringr, forcats), readxl, broom, rmarkdown, knitr, devtools.
+# Edit this list, then rebuild the container.
+
+# VS Code R support (autocomplete, hover help, linting)
+languageserver
+
+# Statistics
+car
+psych
+moments
+GGally
+
+# Data cleaning and tables
+janitor
+skimr
