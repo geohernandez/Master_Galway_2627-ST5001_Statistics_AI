@@ -69,9 +69,15 @@ ankle.24.df %>% group_by(Treatment) %>%
                       )
 
 ```
-**Analysis - Question 1**:
-We could observe on the patients of Treatment B (Early Mobilisation) higher values on statistics such as mean which is around 6.46 points above the Treatment A (Cast Immobilisation). In the case of Treatment A, its Standard Deviation is almost 2.5 times than Treatment B, and the median keep a close value to its respective mean in both treatments(again Treatment B mean is almost exact to median) .  We could observe a wide range of min and max in treatment A, meanwhile the Treatmet B keep a constant range.
-
+**Interpretation – Q1: Numerical summaries**:
+At 24 weeks, patients on Treatment B (Early Mobilisation) had a higher mean AOFAS 
+score(85.77) and median(86) than patients on Treatment A(cast immobilisation;
+mean 79.30, median 80), a difference of about 6.5 points in mean and 6 points
+in medians.  Treatment A was also much more variable: its standard deviation (7.03) 
+is about 2.5 times that of B (2.80), and its range (64–90) is more than twice as wide 
+as B's (80–90). In both groups the mean is slightly below the median, which suggests 
+a mild left skew, with a few lower scores pulling the mean down. No patient in either
+group reached the maximum score of 100. Overall, the summaries suggest that early mobilisation gives both a higher and a more consistent functional outcome at 24 weeks.
 
 **Question 2**: Perform graphical summaries (boxplots, density plots and etc) for treatment A and B. Provide a brief explanation or conclusion based on the summaries. (5 points)
 
@@ -101,17 +107,11 @@ ggplot(ankle.24.df, aes(x = AOFAS,
     
 
 ```
-**Analysis - Question 2**:
+**Interpretation – Q2: Graphical summaries**
 
-Reviewing boxplots and density plot, in a visual way, we are going to get some conclusions,
+The boxplots show that the Week 24 AOFAS scores for Treatment B are both higher and much less spread out than for Treatment A. B's box (Q1 = 83.25, Q3 = 88) sits above A's box (Q1 = 72.5, Q3 = 83), and the two boxes barely touch: about 75% of Treatment A patients scored 83 or less, while about 75% of Treatment B patients scored 83.25 or more. A's IQR (10.5) is more than twice B's (4.75), and A's lower whisker extends to 64, while B's lowest score is 80.
 
-Boxplots: We could observe than both treatments do not overlap. The Treatment A shows a wider
-IQR in comparison with Treatment B.  The Treatment A has whisker values higher than Treatment B, 
-
-
-Density Plots: IN this graph, we can observe the normal distribution bell shape in the
-Treatment B, on the other hand, the treatment A, it is left skewed and disperse values
-through the graph.
+In both groups the mean (dot) lies slightly below the median (line), consistent with the mild left skew seen in Q1. The density plots confirm this: Treatment A is wide with a longer left tail, while Treatment B is tall and concentrated in the mid-80s. The two distributions overlap only in the 80–90 region
 
 ## One-sample inference
 
@@ -124,14 +124,10 @@ TB <- ankle.24.df %>% filter(Treatment == "B") %>% pull(AOFAS)
 t.test(TA)$conf.int
 t.test(TB)$conf.int
 ```
-**Analysis - Question 3**:
-Treatment A: The respective CI fall in the range of [76.67578, 81.92422], we are 95%
-confident that the patients mean AOFAS  is between 76.67578 and 81.92422.
+**Interpretation – Q3: 95% CI for the mean**
+We are 95% confident that the mean 24-week AOFAS score for patients on Treatment A lies between 76.68 and 81.92, and for patients on Treatment B between 84.72 and 86.81. The interval for B is much narrower (about 2.1 points vs 5.2 for A) because B's scores are less variable (SD 2.80 vs 7.03); with equal sample sizes, the standard error s/√n, and so the interval width, is driven by the SD.
 
-Treatment B: The respective CI fall in the range of [84.72111, 86.81222], we are 95%
-confident that the patients mean AOFAS  is between 84.72111 and 86.81222.
-
-
+The two intervals do not overlap: the lowest plausible mean for B (84.7) is above the highest plausible mean for A (81.9). 
 
 **Question 4**: What is the 95% CI for the median of AOFAS scores for treatment A and B, respectively? Provide a brief explanation or conclusion based on the result. (20 points)
 ```{r}
@@ -140,17 +136,10 @@ wilcox.test(TA, conf.int = TRUE)$conf.int
 wilcox.test(TB, conf.int = TRUE)$conf.int
 ```
 
-**Analysis - Question 4**:
-We have applied the Wilcoxon interval (non-parametric), estimating a pseudo-median
-Comparing both ranges for Treatment A and Treatment B, there is no overlap between
-them, as you can see here:
+**Interpretation – Q4: 95% CI for the median**
+Using the one-sample Wilcoxon signed-rank method (no Normality assumption), we are 95% confident that the median 24-week AOFAS score is between 77.0 and 82.5 for Treatment A (estimate 80.0) and between 84.5 and 87.0 for Treatment B (estimate 86.0). Strictly, this estimates the pseudo-median, which matches the median for roughly symmetric data. Because the scores contain many ties, R could not give exactly 95% (achieved levels ≈ 96.1% and 97.6%), so the intervals are slightly conservative. 
 
-Treatment A: CI [77.0, 82.5]
-Treatment B: CI [84.5, 87.0]
-
-The treatment A has a  median interval slightly higher than means, what explain the
-left skew shape, especially in the density plots graph.  Additionally, A's interval
-is wider than B, explained by Standard Deviation stats described in the Question 1.
+Consistent with Q3, A’s interval is wider (5.5 vs 2.5 points), reflecting its greater variability, and sits slightly above its mean interval, as expected with mild left skew. The intervals do not overlap, so the typical Treatment B patient appears to score higher than the typical Treatment A patient.
 
 
 
@@ -169,6 +158,7 @@ wilcox.test(AOFAS ~ Treatment, conf.int = TRUE, conf.level = 0.95, data = ankle.
 
 #Bootstrap
 #means
+set.seed(26293856)
 ankle.24.boot_means <- ankle.24.df %>%
   specify(response = AOFAS, explanatory = Treatment) %>%
   generate(reps = 1000, type = "bootstrap") %>%
@@ -186,15 +176,23 @@ ankle.24.boot_medians <- ankle.24.df %>%
   generate(reps = 1000, type = "bootstrap") %>%
   calculate(stat = "diff in medians", order = c("B", "A"))
 
-percentile_ci <- get_ci(ankle.12.boot)
+percentile_ci <- get_ci(ankle.24.boot_medians)
 
 percentile_ci
 
 
 ```
-**Analysis - Question 5**:
+**Interpretation – Q5: Difference between treatments**
+To test whether the typical 24-week AOFAS score differs between treatments,
+we set H₀: there is no difference between Treatment A and Treatment B,
+against the two-sided alternative  H₁: there is a difference. Applied
+the t.test, wilcox.test and bootstrap,in all of them, B scores higher.
 
+estimates the difference in means (A − B) as −6.47 points 
+(95% CI −9.26 to −3.67; t = −4.68, df ≈ 38, p < 0.001). The Wilcoxon rank-sum test, which makes no Normality assumption, estimates a location shift of −6 points 
+(95% CI −8 to −3; W = 175.5, p < 0.001). The bootstrap, which makes no distributional assumption, gives a 95% percentile CI for the difference in means (B − A) of [3.97, 8.90] and for the difference in medians of [3, 8].
 
+None of the confidence intervals contains 0 and both p-values are far below 0.05, so we reject H₀. There is strong statistical evidence that the typical 24-week AOFAS score is higher under early mobilisation (B). Because three methods with different assumptions give the same direction and a similar size (about 6 points), the conclusion is robust.
 
 
 ## Tolerance interval
@@ -209,8 +207,17 @@ normtol.int(TB, alpha = 0.05, P = 0.99, side = 2)
 # We are 95% confident that 99% of Treatment A patients will have a 24-week AOFAS score 
 # between 55.69 and 102.9
 ```
+**Interpretation – Q6: 95%/99% tolerance intervals**
 
+A tolerance interval describes where individual patient's scores as expected to fall, not where
+the mean lies (ST5001 Week 7 lecture, Two-sample comparisons).  We are 95% confident that 99% of patients on Treatment A will have a 24-week AOFAS score between 55.7 and 102.9, and that 99% of patients on Treatment B will score between 76.4 and 95.2.
 
+The upper limit for Treatment A (**102.9**) exceeds the maximum possible AOFAS score of 100.  This happens because normtol.int assumes Normally distributed data(ST5001 Week 7 lecture; see ?normtol.int), while AOFAS scores are bounded at 100 and slightly left-skewed; in practical terms the upper limit must be read as 100.
+
+These intervals are much wider than the confidence intervals in Question 3 because they cover individual patients rather than the average.  They also overlap
+substantially (76-95 for B lies largely inside 56-100 for A): although the typical
+patient scores higher on Treatment B, not every individual on B will outscore
+every individual on A.
 
 
 
