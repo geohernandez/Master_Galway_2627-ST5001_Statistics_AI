@@ -1,0 +1,271 @@
+---
+title: "ST5001 Assignment 4 2026"
+author: "Geovanny Hernandez Gutierrez - Student ID:26293856"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Packages needed (install once with install.packages() if you don't have them)
+library(ggridges)
+library(viridis)
+library(ggpubr)
+library(infer)
+library(table1)
+library(tolerance)
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+
+## Question of Interest
+
+A company is interested in investigating whether adding a new variant to a particular website will improve 
+i) the visit through time and ii) the proportion of query items resolved compared to that observed in the current website.
+A sample of 300 customers were directed to either the current or new variant of the website and their visit through time whether or not their query was resolved was recorded.
+Variables of Interest: Visit Through Time: Time (secs)
+Resolved: Resolved (Yes / No)
+Between Subject Factor: Variant: Variant (A/B)
+where 'A' represents the current website and 'B' represents the website with new variant.
+
+You are asked to use these data estimate the probability that: 
+1. a random customer will have a visit through time on the new site of less than 3 minutes; 
+2. at least 70% of queries on the new site will be resolved in a day where it is assumed that 55 customers visit the site in a day. You are also asked to provide a comprehensive analysis of 
+these data to decide whether the new site is better than the current site in terms of an improved (average) visit through time and proportion of query items resolved.
+
+
+
+### Import the data
+
+Make sure `ab_test.csv` is saved in the same folder as this markdown file. If the csv file is not in the same folder as your rmd file, remember to change the path to the file in the `read.csv()` function.
+
+```{r}
+ab_test <- read.csv("ab_test.csv")
+glimpse(ab_test)
+head(ab_test)
+```
+
+## Numerical and graphical summaries
+
+```{r}
+
+ab_test %>% group_by(Variant) %>%
+            summarise(
+                      N = n(),
+                      mean        = mean(Time),
+                      sd          = sd(Time),
+                      median      = median(Time),
+                      min         = min(Time),
+                      max         = max(Time),
+                      IQR         = IQR(Time)
+                      )
+
+# Frequency table
+table(ab_test$Variant, ab_test$Resolved)
+
+# Proportions within each variant (percentage)
+prop.table(table(ab_test$Variant,ab_test$Resolved),margin = 1)
+
+# Best way to show it
+table1(~Resolved | Variant, data=ab_test)
+
+# Graphic Exploration
+ab_test %>% 
+    ggplot(aes(x = Time, y = Variant, fill = Variant)) +
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = NA) +        # coloured boxes
+  geom_jitter(aes(colour = Variant), height = 0.12, size = 1.2,
+              alpha = 0.4, show.legend = FALSE) +                      # each customer
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 3,
+               fill = "white", colour = "black") +                     # mean (diamond)
+  scale_fill_manual(values = c(A = "#1f77b4", B = "#ff7f0e")) +
+  scale_colour_manual(values = c(A = "#1f77b4", B = "#ff7f0e")) +
+  labs(title = "Visit-through time by website variant",
+       subtitle = "Boxes show median and IQR; diamonds show the mean",
+       x = "Visit-through time (seconds)",
+       y = "Website variant") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold"))
+  
+
+library(ggridges)
+library(viridis)
+ab_test %>%
+  ggplot(aes(x = Time,
+             y = Variant,
+             fill = ..x..)) +
+  geom_density_ridges_gradient(jittered_points = TRUE, position = "raincloud",
+                               alpha = 0.7, scale = 0.9) +
+  scale_fill_viridis(name = "Time (sec)", option = "E") +
+  labs(x = "Completion Time (seconds)", y = "") +
+  ggtitle('A/B Test for Website Variant')
+
+
+ab_test %>% 
+  ggplot() +
+  geom_bar(aes(Variant, fill = Resolved), position = "fill") +
+  labs(y = "Proportion of visits",
+       x = "Website variant",
+       fill = "Query resolved",
+       title = "Query resolution rate by website variant") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c(No = "grey75", Yes = "#2ca02c")) +
+  theme_minimal(base_size = 13)
+
+```
+** Q1: Describe the design used **
+
+Filling text with the answer here 
+
+
+** Q2:Outline any concerns might you have with the design used **
+
+```{r}
+# boxplots
+ggplot(ankle.24.df, aes(x = Treatment, y = AOFAS, colour = Treatment)) +
+       geom_boxplot() +
+       labs(title = "Boxplot of Week 24 AOFAS by Group",
+            subtitle = "(with mean symbol)",
+            y = "AOFAS Score",
+            x = " ") +
+    stat_summary(fun=mean, geom = "point", shape=20, size=5, color="#E69F00",fill="#E69F00") +
+    theme(legend.position = "none")
+  
+# density plots
+ggplot(ankle.24.df, aes(x = AOFAS,
+                     y = Treatment,
+                     fill = after_stat(x))) +
+  geom_density_ridges_gradient(jittered_points = TRUE, position = "raincloud",
+                          alpha = 0.7, scale = 0.9) +
+  scale_fill_viridis(name = "AOFAS", option = "E") +
+  labs(x = "Week 24 AOFAS Score", y = "") +
+  ggtitle('Week 24 AOFAS Density by Treatment')
+    
+
+```
+**Q3: Graphical summaries**
+
+The boxplots show that the Week 24 AOFAS scores for Treatment B are both higher and much less spread out than for Treatment A. Filling text with the answer here 
+
+In both groups the mean (dot) lies slightly below the median (line), consistent with the mild left skew seen in Q1. The density plots confirm this: Filling text with the answer here 
+
+## One-sample inference
+
+**Question 3**: What is the 95% CI for the mean of AOFAS scores for treatment A and B, respectively? Provide a brief explanation or conclusion based on the result. (20 points)
+```{r}
+# Filter each group to get the CI for the mean (using t.test)
+TA <- ankle.24.df %>% filter(Treatment == "A") %>% pull(AOFAS)
+TB <- ankle.24.df %>% filter(Treatment == "B") %>% pull(AOFAS)
+
+t.test(TA)$conf.int
+t.test(TB)$conf.int
+```
+
+
+**
+4.Provide the results of a suitable formal analysis (hypothesis test and interval estimate) for both response variables. 
+5. Calculate and interpret a 95%/95% Tolerance Interval for the visit through time variable. 
+6. Make a conclusion as to whether the change should be made to the current website.
+
+**
+**Interpretation – Q3: 95% CI for the mean**
+
+We are 95% confident that the mean 24-week AOFAS score for patients on Treatment A lies between 76.68 and 81.92, and for patients on Treatment B between 84.72 and 86.81. The interval for B is much narrower (about 2.1 points vs 5.2 for A) because B's scores are less variable (SD 2.80 vs 7.03); with equal sample sizes, the standard error s/√n, and so the interval width, is driven by the SD.
+
+The two intervals do not overlap: the lowest plausible mean for B (84.7) is above the highest plausible mean for A (81.9). 
+
+**Question 4**: What is the 95% CI for the median of AOFAS scores for treatment A and B, respectively? Provide a brief explanation or conclusion based on the result. (20 points)
+```{r}
+# Q4 – 95% CI for the median, per group
+wilcox.test(TA, conf.int = TRUE)$conf.int
+wilcox.test(TB, conf.int = TRUE)$conf.int
+```
+
+**Interpretation – Q4: 95% CI for the median**
+
+Using the one-sample Wilcoxon signed-rank method (no Normality assumption), we are 95% confident that the median 24-week AOFAS score is between 77.0 and 82.5 for Treatment A (estimate 80.0) and between 84.5 and 87.0 for Treatment B (estimate 86.0). Strictly, this estimates the pseudo-median, which matches the median for roughly symmetric data. Because the scores contain many ties, R could not give exactly 95% (achieved levels ≈ 96.1% and 97.6%), so the intervals are slightly conservative. 
+
+Consistent with Q3, A’s interval is wider (5.5 vs 2.5 points), reflecting its greater variability, and sits slightly above its mean interval, as expected with mild left skew. The intervals do not overlap, so the typical Treatment B patient appears to score higher than the typical Treatment A patient.
+
+
+
+## Two-sample inference
+
+**Question 5**: Is there a meaningful difference in the typical 24 week AOFAS score between the treatments? (Please use `t.test`, `wilcox.test`, and bootstrap to answer the question.) (30 points)
+```{r}
+#t-test
+t.test(AOFAS ~ Treatment, data = ankle.24.df)
+
+#Wilcox
+wilcox.test(AOFAS ~ Treatment, conf.int = TRUE, conf.level = 0.95, data = ankle.24.df)
+
+#Bootstrap
+#means
+set.seed(26293856)
+ankle.24.boot_means <- ankle.24.df %>%
+  specify(response = AOFAS, explanatory = Treatment) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("B","A"))
+
+ci_means <- get_ci(ankle.24.boot_means)
+ci_means
+
+ankle.24.boot_means %>% visualize() + shade_confidence_interval(ci_means)
+
+# medians
+set.seed(26293856)
+ankle.24.boot_medians <- ankle.24.df %>%
+  specify(response = AOFAS, explanatory = Treatment) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in medians", order = c("B", "A"))
+
+ci_medians <- get_ci(ankle.24.boot_medians)
+ci_medians
+
+ankle.24.boot_medians %>% visualize() + shade_confidence_interval(ci_medians)
+
+
+```
+**Interpretation – Q5: Difference between treatments**
+
+To test whether the typical 24-week AOFAS score differs between treatments,
+we set H₀: there is no difference between Treatment A and Treatment B,
+against the two-sided alternative  H₁: there is a difference. We applied
+the t-test, the Wilcoxon test and the bootstrap; in all of them, B scores higher.
+
+The Welch t-test estimates the difference in means (A − B) as −6.47 points 
+(95% CI −9.26 to −3.67; t = −4.68, df ≈ 38, p < 0.001). The Wilcoxon rank-sum test, which makes no Normality assumption, estimates a location shift of −6 points 
+(96.7% CI −8 to −3, as the rank-based method cannot achieve exactly 95%; W = 175.5, p < 0.001). The bootstrap, which makes no distributional assumption, gives a 95% percentile CI for the difference in means (B − A) of [3.99, 9.10] and for the difference in medians of [3, 8].
+
+None of the confidence intervals contains 0 and both p-values are far below 0.05, so we reject H₀. There is strong statistical evidence that the typical 24-week AOFAS score is higher under early mobilisation (B). Because three methods with different assumptions give the same direction and a similar size (about 6 points), the conclusion is robust.
+
+In practical terms, we observed a difference of about 6 points in the typical score. This is a meaningful change for a patient: it is close to one standard deviation of Treatment A (7.0), so it is large compared with how much patients normally vary. It is also not just the average that improves: patients on Treatment B are much more consistent, with no scores below 80, compared with 64 under Treatment A.
+
+
+## Tolerance interval
+
+**Question 6**: Calculate the 95%/99% tolerance interval for treatment A and B, respectively. Provide a brief explanation based on the results. (20 points)
+
+```{r}
+# Q6 – 95%/99% tolerance interval for treatment A and B  (95% CI and 99% coverage of patients)
+normtol.int(TA, alpha = 0.05, P = 0.99, side = 2)
+normtol.int(TB, alpha = 0.05, P = 0.99, side = 2)
+```
+**Interpretation – Q6: 95%/99% tolerance intervals**
+
+A tolerance interval describes where individual patients' scores are expected to fall, not where
+the mean lies (ST5001 Week 7 lecture, Two-sample comparisons).  We are 95% confident that 99% of patients on Treatment A will have a 24-week AOFAS score between 55.7 and 102.9, and that 99% of patients on Treatment B will score between 76.4 and 95.2.
+
+The upper limit for Treatment A (**102.9**) exceeds the maximum possible AOFAS score of 100.  This happens because `normtol.int` assumes Normally distributed data (ST5001 Week 7 lecture; see ?normtol.int), while AOFAS scores are bounded at 100 and slightly left-skewed; in practical terms the upper limit must be read as 100.
+
+These intervals are much wider than the confidence intervals in Question 3 because they cover individual patients rather than the average.  They also overlap
+substantially (76-95 for B lies largely inside 56-100 for A): although the typical
+patient scores higher on Treatment B, not every individual on B will outscore
+every individual on A.
