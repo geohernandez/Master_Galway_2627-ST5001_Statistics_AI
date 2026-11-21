@@ -46,14 +46,38 @@ these data to decide whether the new site is better than the current site in ter
 
 Make sure `ab_test.csv` is saved in the same folder as this markdown file. If the csv file is not in the same folder as your rmd file, remember to change the path to the file in the `read.csv()` function.
 
+
+** Q1: Describe the design used **
+
+The design used is the A/B test, which it is a type of experiment with two groups
+where is required to establish if there is a difference between the groups.  Here,
+the users connect two each of the website (current and new )  and their visit through time 
+whether or not their query was resolved.  It is a random experiment, with a control group
+and measurements.
+
+
+** Q2:Outline any concerns might you have with the design used **
+No, according to the description of the experiment, we have the follow points:
+.Randomisation
+.Control Group
+.Baseline measurement
+.Blinding
+.Replication not pseudo-replicates
+
+All of these aspects would represent a proper warranty on the study design quality.
+
+############################################################################################
+## Reading the dataset
+############################################################################################
+
 ```{r}
 ab_test <- read.csv("ab_test.csv")
 glimpse(ab_test)
 head(ab_test)
 ```
-
+############################################################################################
 ## Numerical and graphical summaries
-
+############################################################################################
 ```{r}
 
 ab_test %>% group_by(Variant) %>%
@@ -76,9 +100,12 @@ prop.table(table(ab_test$Variant,ab_test$Resolved),margin = 1)
 # Best way to show it
 table1(~Resolved | Variant, data=ab_test)
 
-# Graphic Exploration
+############################################################################################
+## Graphic Exploration
+############################################################################################
 ab_test %>% 
-    ggplot(aes(x = Time, y = Variant, fill = Variant)) +
+  ggplot(aes(x = Time, y = Variant, fill = Variant)) +
+  stat_boxplot(geom = "errorbar", width = 0.25) + 
   geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = NA) +        # coloured boxes
   geom_jitter(aes(colour = Variant), height = 0.12, size = 1.2,
               alpha = 0.4, show.legend = FALSE) +                      # each customer
@@ -97,6 +124,8 @@ ab_test %>%
 
 library(ggridges)
 library(viridis)
+
+#Density Plots
 ab_test %>%
   ggplot(aes(x = Time,
              y = Variant,
@@ -107,7 +136,7 @@ ab_test %>%
   labs(x = "Completion Time (seconds)", y = "") +
   ggtitle('A/B Test for Website Variant')
 
-
+# Stacked bar chart
 ab_test %>% 
   ggplot() +
   geom_bar(aes(Variant, fill = Resolved), position = "fill") +
@@ -119,153 +148,153 @@ ab_test %>%
   scale_fill_manual(values = c(No = "grey75", Yes = "#2ca02c")) +
   theme_minimal(base_size = 13)
 
-```
-** Q1: Describe the design used **
-
-Filling text with the answer here 
-
-
-** Q2:Outline any concerns might you have with the design used **
-
-```{r}
-# boxplots
-ggplot(ankle.24.df, aes(x = Treatment, y = AOFAS, colour = Treatment)) +
-       geom_boxplot() +
-       labs(title = "Boxplot of Week 24 AOFAS by Group",
-            subtitle = "(with mean symbol)",
-            y = "AOFAS Score",
-            x = " ") +
-    stat_summary(fun=mean, geom = "point", shape=20, size=5, color="#E69F00",fill="#E69F00") +
-    theme(legend.position = "none")
-  
-# density plots
-ggplot(ankle.24.df, aes(x = AOFAS,
-                     y = Treatment,
-                     fill = after_stat(x))) +
-  geom_density_ridges_gradient(jittered_points = TRUE, position = "raincloud",
-                          alpha = 0.7, scale = 0.9) +
-  scale_fill_viridis(name = "AOFAS", option = "E") +
-  labs(x = "Week 24 AOFAS Score", y = "") +
-  ggtitle('Week 24 AOFAS Density by Treatment')
-    
+# Based on questions with respect to probability, we are going to define
+# additional graph for supporting relevant aspects like if we have a normal 
+# distribution for Design B (new website)
+B_df <- ab_test %>% filter(Variant == "B")
+# Histogram
+ggplot(B_df, aes(Time)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 20,
+                 fill = "#ff7f0e", colour = "white", alpha = 0.8) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(B_df$Time), sd = sd(B_df$Time)),
+                linewidth = 1) +
+  labs(title = "Design B: visit-through time with fitted normal curve",
+       x = "Visit-through time (seconds)", y = "Density") +
+  theme_minimal(base_size = 13)
 
 ```
-**Q3: Graphical summaries**
+
+
+**Numerical and graphical summaries**
 
 The boxplots show that the Week 24 AOFAS scores for Treatment B are both higher and much less spread out than for Treatment A. Filling text with the answer here 
 
 In both groups the mean (dot) lies slightly below the median (line), consistent with the mild left skew seen in Q1. The density plots confirm this: Filling text with the answer here 
 
-## One-sample inference
+############################################################################################
+## Hypothesis test and interval estimate
+############################################################################################
 
-**Question 3**: What is the 95% CI for the mean of AOFAS scores for treatment A and B, respectively? Provide a brief explanation or conclusion based on the result. (20 points)
+# a random customer will have a visit through time on the new site of less than 3 minutes;
+# 3 minutes is 180 seconds
+# It would be rephrase it as : Probability that a customer using new website Design B take
+# less than 180 seconds.
+#  Variant (Current A or New Website B), Time and Resolved (Query from the user)
+
 ```{r}
-# Filter each group to get the CI for the mean (using t.test)
-TA <- ankle.24.df %>% filter(Treatment == "A") %>% pull(AOFAS)
-TB <- ankle.24.df %>% filter(Treatment == "B") %>% pull(AOFAS)
+# Vector - Get time for Variant B
+time_B <- ab_test$Time[ab_test$Variant == "B"]
+mean_B <-mean(time_B)
+sd_B <- sd(time_B)
+mean_B
+sd_B
 
-t.test(TA)$conf.int
-t.test(TB)$conf.int
+# The Design B (new website) can be considered as approximately normal, based on the
+# output of the histogram developed previously on Design B. Therefore  it is feasible 
+# to estimate the probability using pnorm(), additionally, we are going to use mean()
+# just to confirm that use of normal distribution is feasible.
+pnorm(180, mean = mean_B, sd = sd_B)
+
+mean(time_B < 180)
+
+
+# Question - Probability that a customer using new website Design B take
+# less than 180 seconds.
+# Based on the previous outcomes, for a random customer on the new site, the chance of
+# completing in less than 180 seconds is 29.51 % which is slightly less than observed
+# proportion which is 32.7 %, it represents a small gap of 3.2 %, supporting the
+# use of normal approximation.
+
 ```
 
 
-**
-4.Provide the results of a suitable formal analysis (hypothesis test and interval estimate) for both response variables. 
-5. Calculate and interpret a 95%/95% Tolerance Interval for the visit through time variable. 
-6. Make a conclusion as to whether the change should be made to the current website.
 
-**
-**Interpretation – Q3: 95% CI for the mean**
-
-We are 95% confident that the mean 24-week AOFAS score for patients on Treatment A lies between 76.68 and 81.92, and for patients on Treatment B between 84.72 and 86.81. The interval for B is much narrower (about 2.1 points vs 5.2 for A) because B's scores are less variable (SD 2.80 vs 7.03); with equal sample sizes, the standard error s/√n, and so the interval width, is driven by the SD.
-
-The two intervals do not overlap: the lowest plausible mean for B (84.7) is above the highest plausible mean for A (81.9). 
-
-**Question 4**: What is the 95% CI for the median of AOFAS scores for treatment A and B, respectively? Provide a brief explanation or conclusion based on the result. (20 points)
-```{r}
-# Q4 – 95% CI for the median, per group
-wilcox.test(TA, conf.int = TRUE)$conf.int
-wilcox.test(TB, conf.int = TRUE)$conf.int
-```
-
-**Interpretation – Q4: 95% CI for the median**
-
-Using the one-sample Wilcoxon signed-rank method (no Normality assumption), we are 95% confident that the median 24-week AOFAS score is between 77.0 and 82.5 for Treatment A (estimate 80.0) and between 84.5 and 87.0 for Treatment B (estimate 86.0). Strictly, this estimates the pseudo-median, which matches the median for roughly symmetric data. Because the scores contain many ties, R could not give exactly 95% (achieved levels ≈ 96.1% and 97.6%), so the intervals are slightly conservative. 
-
-Consistent with Q3, A’s interval is wider (5.5 vs 2.5 points), reflecting its greater variability, and sits slightly above its mean interval, as expected with mild left skew. The intervals do not overlap, so the typical Treatment B patient appears to score higher than the typical Treatment A patient.
-
-
-
-## Two-sample inference
-
-**Question 5**: Is there a meaningful difference in the typical 24 week AOFAS score between the treatments? (Please use `t.test`, `wilcox.test`, and bootstrap to answer the question.) (30 points)
-```{r}
-#t-test
-t.test(AOFAS ~ Treatment, data = ankle.24.df)
-
-#Wilcox
-wilcox.test(AOFAS ~ Treatment, conf.int = TRUE, conf.level = 0.95, data = ankle.24.df)
-
-#Bootstrap
-#means
-set.seed(26293856)
-ankle.24.boot_means <- ankle.24.df %>%
-  specify(response = AOFAS, explanatory = Treatment) %>%
-  generate(reps = 1000, type = "bootstrap") %>%
-  calculate(stat = "diff in means", order = c("B","A"))
-
-ci_means <- get_ci(ankle.24.boot_means)
-ci_means
-
-ankle.24.boot_means %>% visualize() + shade_confidence_interval(ci_means)
-
-# medians
-set.seed(26293856)
-ankle.24.boot_medians <- ankle.24.df %>%
-  specify(response = AOFAS, explanatory = Treatment) %>%
-  generate(reps = 1000, type = "bootstrap") %>%
-  calculate(stat = "diff in medians", order = c("B", "A"))
-
-ci_medians <- get_ci(ankle.24.boot_medians)
-ci_medians
-
-ankle.24.boot_medians %>% visualize() + shade_confidence_interval(ci_medians)
-
-
-```
-**Interpretation – Q5: Difference between treatments**
-
-To test whether the typical 24-week AOFAS score differs between treatments,
-we set H₀: there is no difference between Treatment A and Treatment B,
-against the two-sided alternative  H₁: there is a difference. We applied
-the t-test, the Wilcoxon test and the bootstrap; in all of them, B scores higher.
-
-The Welch t-test estimates the difference in means (A − B) as −6.47 points 
-(95% CI −9.26 to −3.67; t = −4.68, df ≈ 38, p < 0.001). The Wilcoxon rank-sum test, which makes no Normality assumption, estimates a location shift of −6 points 
-(96.7% CI −8 to −3, as the rank-based method cannot achieve exactly 95%; W = 175.5, p < 0.001). The bootstrap, which makes no distributional assumption, gives a 95% percentile CI for the difference in means (B − A) of [3.99, 9.10] and for the difference in medians of [3, 8].
-
-None of the confidence intervals contains 0 and both p-values are far below 0.05, so we reject H₀. There is strong statistical evidence that the typical 24-week AOFAS score is higher under early mobilisation (B). Because three methods with different assumptions give the same direction and a similar size (about 6 points), the conclusion is robust.
-
-In practical terms, we observed a difference of about 6 points in the typical score. This is a meaningful change for a patient: it is close to one standard deviation of Treatment A (7.0), so it is large compared with how much patients normally vary. It is also not just the average that improves: patients on Treatment B are much more consistent, with no scores below 80, compared with 64 under Treatment A.
-
-
-## Tolerance interval
-
-**Question 6**: Calculate the 95%/99% tolerance interval for treatment A and B, respectively. Provide a brief explanation based on the results. (20 points)
+. 
 
 ```{r}
-# Q6 – 95%/99% tolerance interval for treatment A and B  (95% CI and 99% coverage of patients)
-normtol.int(TA, alpha = 0.05, P = 0.99, side = 2)
-normtol.int(TB, alpha = 0.05, P = 0.99, side = 2)
+# Q 2 **: At least 70% of queries on the new site will be resolved in a day where it is assumed that 55 
+# customers visit the site in a day
+
+# We should start with the calculation of the number of customers who resolved its query,
+# this mean, get the 70% of 55 customers, because 0.70 multiply by 55 = 38.5 , the number of customers
+# must be a whole number, it means at least 39 customers
+
+
+resolved_B <-ab_test$Resolved[ab_test$Variant =="B"]
+
+# Estimate the probability of success (query resolved) for  Design B:
+p_hat <- mean(resolved_B =="Yes")
+p_hat
+
+# Using the pbinom() for getting the probability of getting resolved (success) query for at least
+# 39 of the 55 customers
+# P(x >=39) = 1 - P(X <= 38)
+1 - pbinom(38, size =55, prob = p_hat)
+
+#Based on the outcome, we can say that there is an approximate chance of 6% for at least 70% of 55 #customers (39) resolve their query.  
+# Answering the question, it is unlikely (about 6%) that at least 39 of the
+# 55 customers resolve their query, given a probability of success of 60%:
+# we would expect about 33 (0.60 x 55), well below 39.
 ```
-**Interpretation – Q6: 95%/99% tolerance intervals**
+##############################################################################################################
+## Provide the results of a suitable formal analysis (hypothesis test and interval estimate) for both response
+##  variables (Time and Resolved)
+##############################################################################################################
+```{r}
+# *******  Time  ********
+# Null Hypothesis: No difference time between designs.  The direction of the alternative hypothesis reflects
+# the company's objective: Design B should have shorter times and higher resolved rate
+# H0: mu_B = mu_A  (the mean visit-through time is the same for both designs)
+# H1: mu_B < mu_A  (Design B has a lower mean visit-through time) 
+# Welch's tow sample t-test
+# The box plot showed B is more spread out than A, so Welch is the safe choice.
+t.test(Time ~ Variant, alternative = "greater", data = ab_test)
 
-A tolerance interval describes where individual patients' scores are expected to fall, not where
-the mean lies (ST5001 Week 7 lecture, Two-sample comparisons).  We are 95% confident that 99% of patients on Treatment A will have a 24-week AOFAS score between 55.7 and 102.9, and that 99% of patients on Treatment B will score between 76.4 and 95.2.
+# Based on the output, we can reject the H0 at the 5% level is p-value < 2.2e-16
+# Alternative H1 shows a strong evidence in favour of H1.
+# Customers who visit the new website(B) have a lower mean visit-through time than Design A, where
+# the difference in means is 82.98 seconds in favour of B.
+# 95% CI - 74.6 to inf - We are 95% confident that B is at least about 75 seconds faster
+# on average
 
-The upper limit for Treatment A (**102.9**) exceeds the maximum possible AOFAS score of 100.  This happens because `normtol.int` assumes Normally distributed data (ST5001 Week 7 lecture; see ?normtol.int), while AOFAS scores are bounded at 100 and slightly left-skewed; in practical terms the upper limit must be read as 100.
+t.test(Time ~ Variant, conf.level = 0.95, data = ab_test )
 
-These intervals are much wider than the confidence intervals in Question 3 because they cover individual patients rather than the average.  They also overlap
-substantially (76-95 for B lies largely inside 56-100 for A): although the typical
-patient scores higher on Treatment B, not every individual on B will outscore
-every individual on A.
+# *******  Resolved  ********
+# Null Hypothesis: No difference in resolution rate for customers query between designs.
+# H₀: p_B = p_A: no real difference in resolution rate.
+# H₁: p_B ≠ p_A: the resolution rates differ, in either direction. This is two-sided, as in the tutorial.
+
+# Calculate the number of resolution queries and the sample size in each group
+successes <- c(
+   sum(ab_test$Resolved[ab_test$Variant == "B"]=="Yes"),
+   sum(ab_test$Resolved[ab_test$Variant == "A"]=="Yes")
+)
+
+group_sizes <- c(
+  sum(ab_test$Variant =="B"),
+  sum(ab_test$Variant =="A")
+)
+
+successes
+group_sizes
+
+# Two-proportion test
+prop.test(x = c(90,74),c(150,150), conf.level = 0.95)
+
+# The outcome of previous prop.test bring some key information
+# The p-value (0.081) is major than 0.05, for resolution rate
+# it's inconclusive.  The sample doesn't give enough evidence
+# of a difference, because the CI is mostly positive but is weak
+# There is a observed difference where B is about 10.7 percentage
+# points higher in the sample
+# The 0.60 in prop 1 is the same p_hat which has been used in the
+# pbinom() code.
+
+```
+##############################################################################################################
+## Calculate and interpret a 95%/95% Tolerance Interval for the visit through time variable.
+##############################################################################################################
+```{r}
+
+```
